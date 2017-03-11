@@ -32,7 +32,7 @@
   exports: Exports,
   hot?: HotModuleReloadingData,
 };
- type ModuleID = number;
+ type ModuleID = string;
  type ModuleDefinition = {|
   dependencyMap: ?DependencyMap,
   exports: Exports,
@@ -52,12 +52,12 @@
 
  const modules: ModuleMap = Object.create(null);
  if (__DEV__) {
-   var verboseNamesToModuleIds: {[key: string]: number} = Object.create(null);
+   var verboseNamesToModuleIds: {[key: string]: string} = Object.create(null);
  }
 
  function define(
   factory: FactoryFn,
-  moduleId: number,
+  moduleId: string,
   dependencyMap?: DependencyMap,
 ) {
    if (moduleId in modules) {
@@ -88,25 +88,26 @@
  }
 
  function require(moduleId: ModuleID | VerboseModuleNameForDev) {
-   if (__DEV__ && typeof moduleId === 'string') {
-     const verboseName = moduleId;
-     moduleId = verboseNamesToModuleIds[moduleId];
-     if (moduleId == null) {
+   let module, verboseName;
+   if (modules[moduleId]) {
+     module = modules[moduleId];
+   } else if (__DEV__ && verboseNamesToModuleIds[moduleId]) {
+     verboseName = moduleId;
+     moduleId = verboseNamesToModuleIds[verboseName];
+     if (typeof moduleId === "undefined") {
        throw new Error(`Unknown named module: '${verboseName}'`);
      } else {
        console.warn(
-        `Requiring module '${verboseName}' by name is only supported for ` +
-        'debugging purposes and will BREAK IN PRODUCTION!'
-      );
+         `Requiring module '${verboseName}' by name is only supported for ` +
+         'debugging purposes and will BREAK IN PRODUCTION!'
+       );
+       module = modules[moduleId];
      }
    }
 
-  //$FlowFixMe: at this point we know that moduleId is a number
-   const moduleIdReallyIsNumber: number = moduleId;
-   const module = modules[moduleIdReallyIsNumber];
    return module && module.isInitialized
     ? module.exports
-    : guardedLoadModule(moduleIdReallyIsNumber, module);
+    : guardedLoadModule(moduleId, module);
  }
 
  let inGuard = false;

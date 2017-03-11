@@ -141,7 +141,9 @@ class Bundler {
       transformModuleHash,
     ];
 
-    this._getModuleId = createModuleIdFactory();
+    this._getModuleId = createModuleIdFactory({
+      projectRoots: opts.projectRoots,
+    });
 
     let getCacheKey = () => '';
     if (opts.transformModulePath) {
@@ -558,7 +560,9 @@ class Bundler {
         {dev, platform, recursive},
         transformOptions,
         onProgress,
-        isolateModuleIDs ? createModuleIdFactory() : this._getModuleId,
+        isolateModuleIDs ? createModuleIdFactory({
+          projectRoots:this._projectRoots,
+        }) : this._getModuleId,
       ));
     });
   }
@@ -800,16 +804,33 @@ function verifyRootExists(root) {
   assert(fs.statSync(root).isDirectory(), 'Root has to be a valid directory');
 }
 
-function createModuleIdFactory() {
+function createModuleIdFactory({projectRoots}) {
   const fileToIdMap = Object.create(null);
-  let nextId = 0;
+  const idToFileMap = Object.create(null);
   return ({path: modulePath}) => {
     if (!(modulePath in fileToIdMap)) {
-      fileToIdMap[modulePath] = nextId;
-      nextId += 1;
+      const relativePath = getPathRelativeToRoot(projectRoots, modulePath);
+      const moduleId = createModuleHashIdByRelativePath(relativePath, idToFileMap);
+
+      idToFileMap[moduleId] = modulePath;
+      fileToIdMap[modulePath] = moduleId;
     }
     return fileToIdMap[modulePath];
   };
+}
+
+function createModuleHashIdByRelativePath(relativePath, usedIds = {}) {
+  const minIdLength = 4;
+  const hash = crypto.createHash("md5");
+  let idLength = minIdLength, hashId;
+  hash.update(relativePath);
+  hashId = hash.digest("base64");
+  
+  // make a short id
+  while (usedIds[hashId.substr(0, idLength)]) {
+    idLength += 1;
+  }
+  return hashId.substr(0, idLength);
 }
 
 function getMainModule({dependencies, numPrependedDependencies = 0}) {

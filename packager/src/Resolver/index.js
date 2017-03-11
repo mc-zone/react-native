@@ -265,7 +265,7 @@ function replaceDependencyID(stringWithDependencyIDAtStart, resolvedDeps) {
   const dependencyName = match && match[2];
   if (match != null && dependencyName in resolvedDeps) {
     const {length} = match[0];
-    const id = String(resolvedDeps[dependencyName]);
+    const id = JSON.stringify(resolvedDeps[dependencyName]);
     return (
       padRight(id, length) +
       stringWithDependencyIDAtStart
